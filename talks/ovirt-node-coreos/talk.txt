@@ -1,0 +1,79 @@
+Slide1 - Preface
+----------------
+hi
+my name is yuval turgeman, i'm a sw engineer working for redhat
+i'm part of the redhat virtualization group, and today i would like to talk to
+you about the evolution of ovirt node.
+
+Agenda
+----------------
+We'll start with a short background, what's ovirt, and more specifically
+what's an ovirt node and why we need it.
+We'll continue with an overview of the evolution of ovirt node, where we were
+a few years ago, what we're doing today, and what perhaps we plan to do
+next which is an ovirt node based on CoreOS.
+I'll explain how we built our own coreos-based ovirt node using the standard
+tools from coreos, and talk about the challenges that we had along the way.
+
+Background
+-------------------
+- First, I assume that everybody heard of ovirt, in case anyone missed it, it's
+the leading open source virtualization plaform.  Come say hi at our booth.
+- an ovirt host (or hypervisor) is where the vms run, so for that we need the ovirt
+  bits (like vdsm, gluster for hyperconverge), and the virt stack.  For exapmle, turning a
+normal running centos host into an ovirt host is just a matter of enabling the
+ovirt repos and installing a single ovirt-host package.
+- ovirt node is a minimal centos installation that includes all the bits that
+  are needed to server as an ovirt host.
+- It had different layouts, but in general, we deliver it as a closed, and
+  tested image.
+- Legacy node was in ovirt 3.x
+- Next Generation node, 4.x
+- CoreOS node ?
+
+Legacy
+---------------
+LiveCD, mounted R/O iso with a live-rw (ram) with some persistant locations
+Benefits - image based, immutable
+Drawbacks - live-rw would obvirously be deleted which is something you dont
+really expect for an installed system.
+
+Node NG
+----------------
+Based on LVM and snapshots, we compose a squashfs and deliver it inside an rpm
+using yum/dnf.  The squashfs is extracted into an LV which is then marked as
+R/O, and then we create a snapshot which is mounted r/w as / while /var is
+common.  A new boot entry is added, and selected by default, so if something
+didnt work you can just boot to the previous working version
+Benefits - image based, A/B updates, it just works...
+Drawbakcs - making it just work is a hard task, zstream updates are very
+challenging, we can't simply run the rpm scriplets and expect them to work
+because rpm will not detect this as upgrade.  Since we're using yum/dnf we
+need to mark the system as updated by using some hacks with on the rpmdb
+
+
+CoreOS Node
+--------------------
+- Motivation, first of all, it's cool, so why not ?
+- CoreOS/rpm-ostree try to solve the same problems as what we're trying to
+  solve, which is an image-based deployment with the ability to do rollbacks
+to the entire image.
+- rpm-ostree is more moden and tries to be a generic solution while imgbased
+  became over the years a little more tightly coupled with ovirt
+
+
+Building and Deploying
+----------------------
+In order to compose our own coreos based node, we wanted to use the standard
+tools from coreos.  For this purpose we used the coreos-assembler container.
+I will not dive too much into this, but in general, we run the container with
+a configuration git repository, and we call the commands we need.
+So, what we are doing in our build process is we clone the
+fedora-coreos-config repository which holds the manifests for fedora coreos,
+and we include that in our own manifest while overriding some of relevant
+keys, like packages, commit refs, etc.
+In addition to that, we grab the ovirt-release rpm that provides us with the
+repo files that we need in order to install ovirt-host.
+Then, we just let the coreos-assembler container do its work.  Eventually we
+generate a thin ISO, and a commit tarball.
+Deploying 
